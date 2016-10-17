@@ -1,11 +1,8 @@
 ## Standard phusion part
 FROM armhf/phusion/baseimage:0.9.18
 
-## Expose ports.
-EXPOSE 22
-
 ## Application specific part
-MAINTAINER Vlad Spichek <vspichek@unixtastic.com>
+MAINTAINER Vlad Spichek <vspichek@gmail.com>
 
 RUN /etc/my_init.d/00_regen_ssh_host_keys.sh -f && rm -f /etc/service/sshd/down  # Uncomment to Enable SSHD
 #RUN rm -rf /etc/service/sshd /etc/my_init.d/00_regen_ssh_host_keys.sh           # Uncomment to Disable SSHD
@@ -27,5 +24,8 @@ RUN groupadd -g 1000 git && useradd -g git -u 1000 -d /git -m -r -s /usr/bin/git
 RUN rm -rf /etc/update-motd.d /etc/motd /etc/motd.dynamic && \
     ln -fs /dev/null /run/motd.dynamic && \
     rm -rf /tmp/* /var/tmp/*
+
+## Expose ports.
+EXPOSE 22
 
 CMD ["/sbin/my_init"]

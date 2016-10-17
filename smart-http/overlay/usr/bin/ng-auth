@@ -3,14 +3,12 @@
 
 set -e
 
+ADMIN=gitadmin
 USER="root"
 GROUP="root"
 MOD="644"
 AUTH="/ng-auth"
-QUIET=false
-#SFLOG="/ng-auth.log"
 
-#help text
 showhelp() {
 cat 1>&2 << EOF
 ╔═══════════════════════════════════════════════════════════════════╗
@@ -25,43 +23,12 @@ cat 1>&2 << EOF
 EOF
 }
 
-#print timestamp
-timestamp() {
-    date +"%Y-%m-%d %T"
-}
-
-#screen/file logger
 sflog() {
-    #if $1 is not null
-    if [ ! -z ${1+x} ]; then
-        message=$1
-    else
-        #exit function
-        return 1;
-    fi
-    #if $QUIET is not true
-    if ! $($QUIET); then
-        echo "${message}"
-    fi
-    #if $SFLOG is not null
-    if [ ! -z ${SFLOG+x} ]; then
-        #if $2 is regular file or does not exist
-        if [ -f ${SFLOG} ] || [ ! -e ${SFLOG} ]; then
-            echo "$(timestamp) ${message}" >> ${SFLOG}
-        fi
-    fi
+    echo $*
 }
 
-#screen/file error logger
 sferror() {
-    #if $1 is not null
-    if [ ! -z ${1+x} ]; then
-        message=$1
-        echo ""
-        sflog "ERROR: ${message}" >&2
-        echo ""
-        showhelp
-    fi
+    echo $*
     exit 1
 }
 
@@ -69,10 +36,10 @@ sferror() {
 ng-auth-init() {
     #if directory
     if [ -d ${AUTH} ]; then
-        chown -R ${USER}:${GROUP} ${AUTH} &> /dev/null
+        chown -R ${USER}:${GROUP} ${AUTH}
         #if $MOD is not null
         if [ ! -z ${MOD+x} ]; then
-            find ${AUTH} -type f -exec chmod ${MOD} '{}' + &> /dev/null
+            find ${AUTH} -type f -exec chmod ${MOD} '{}' +
         fi
         rm -f ${AUTH}/${ADMIN}.password &> /dev/null
         #check if htpasswd exists
@@ -95,8 +62,7 @@ ng-auth-init() {
 #reset auth
 ng-auth-reset() {
     ng-auth-init
-    #remove htpasswd file
-    rm -f ${AUTH}/htpasswd &> /dev/null
+    rm -f ${AUTH}/htpasswd
     sflog "Removed ${AUTH}/htpasswd"
     ng-auth-init
 }
@@ -104,8 +70,7 @@ ng-auth-reset() {
 #add/edit user
 ng-auth-user() {
     ng-auth-init
-    #add user to htpasswd
-    htpasswd -b ${AUTH}/htpasswd ${GBUSER} ${GBPASS} &> /dev/null
+    htpasswd -b ${AUTH}/htpasswd ${GBUSER} ${GBPASS}
     sflog "The user ${GBUSER} has been set with password ${GBPASS}"
 }
 
@@ -117,15 +82,9 @@ ng-auth-remove() {
     sflog "The user ${REMOVE} has been removed"
 }
 
-#validate htpasswd
-if ! $(which htpasswd &> /dev/null); then
-    sferror "htpasswd not found in path"
-fi
+which htpasswd &> /dev/null || sferror "htpasswd not found in path"
 
-#validate openssl
-if ! $(which openssl &> /dev/null); then
-    sferror "openssl not found in path"
-fi
+which openssl &> /dev/null || sferror "openssl not found in path"
 
 #parse arguments
 while getopts ":vxu:p:r:" opt; do

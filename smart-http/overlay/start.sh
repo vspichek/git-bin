@@ -3,34 +3,9 @@
 
 set -e
 
-QUIET=false
-#SFLOG="/start.log"
-
-#print timestamp
-timestamp() {
-    date +"%Y-%m-%d %T"
-}
-
-#screen/file logger
+#logger
 sflog() {
-    #if $1 is not null
-    if [ ! -z ${1+x} ]; then
-        message=$1
-    else
-        #exit function
-        return 1;
-    fi
-    #if $QUIET is not true
-    if ! $($QUIET); then
-        echo "${message}"
-    fi
-    #if $SFLOG is not null
-    if [ ! -z ${SFLOG+x} ]; then
-        #if $2 is regular file or does not exist
-        if [ -f ${SFLOG} ] || [ ! -e ${SFLOG} ]; then
-            echo "$(timestamp) ${message}" >> ${SFLOG}
-        fi
-    fi
+    echo $*
 }
 
 #start services function
@@ -54,19 +29,11 @@ stopc() {
 #trap "docker stop <container>" and shuts services down cleanly
 trap "stopc; exit" TERM
 
-#startup
-
-#test for ENV varibale $FQDN
-if [ ! -z ${FQDN+x} ]; then
-    sflog "FQDN is set to ${FQDN}"
-else
-    export FQDN=$(hostname)
-    sflog "FQDN is set to ${FQDN}"
-fi
-
 #modify config files with fqdn
-sed -i "s,MYSERVER,${FQDN},g" /etc/nginx/nginx.conf &> /dev/null
-sed -i "s,MYSERVER,${FQDN},g" /var/www/gitlist/config.ini &> /dev/null
+sed -i "s,MYSERVER,${FQDN},g" /etc/git/*
+
+chgrp git /var/www/gitlist/cache
+chmod g+w /var/www/gitlist/cache
 
 #init
 repo-admin -v

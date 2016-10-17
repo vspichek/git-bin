@@ -5,12 +5,9 @@ set -e
 
 GROUP="git"
 REPO="/repos"
-QUIET=false
-#SFLOG="/repo-admin.log"
 
-#help text
 showhelp() {
-cat 1>&2 << EOF
+cat >&2 << EOF
 ╔═══════════════════════════════════════════════════════════╗
 ║ Usage:                                                    ║
 ╠═══════════════════════════════════════════════════════════╣
@@ -22,122 +19,59 @@ cat 1>&2 << EOF
 EOF
 }
 
-#print timestamp
-timestamp() {
-    date +"%Y-%m-%d %T"
-}
-
-#screen/file logger
 sflog() {
-    #if $1 is not null
-    if [ ! -z ${1+x} ]; then
-        message=$1
-    else
-        #exit function
-        return 1;
-    fi
-    #if $QUIET is not true
-    if ! $($QUIET); then
-        echo "${message}"
-    fi
-    #if $SFLOG is not null
-    if [ ! -z ${SFLOG+x} ]; then
-        #if $2 is regular file or does not exist
-        if [ -f ${SFLOG} ] || [ ! -e ${SFLOG} ]; then
-            echo "$(timestamp) ${message}" >> ${SFLOG}
-        fi
-    fi
+    echo $*
 }
 
-#screen/file error logger
 sferror() {
-    #if $1 is not null
-    if [ ! -z ${1+x} ]; then
-        message=$1
-        echo ""
-        sflog "ERROR: ${message}" >&2
-        echo ""
-        showhelp
-    fi
+    echo $*
     exit 1
 }
 
-#init repository
-repo-init() {
-    #if directory
-    if [ -d ${REPO} ]; then
-        chgrp -R ${GROUP} ${REPO}
-        chmod -R g+w ${REPO}
-        find ${REPO} -type d | xargs chmod g+s
-    else
-        sferror "${REPO} not found"
-    fi
+repo-chmown() {
+    [ -d ${REPO} ] || sferror "${REPO} not found"
+
+    chgrp -R ${GROUP} ${REPO}
+    chmod -R g+w ${REPO}
+    find ${REPO} -type d | xargs chmod g+s
 }
 
-#list repos
 repo-list() {
-    repo-init
-    while read indir; do
-        echo $indir | sed -e "s,${REPO}/,,"
-    done < <(find ${REPO} -type d | grep .git$)
+    ls ${REPO}
 }
 
-#create new repository
 repo-new() {
-    repo-init
-    #if ends with .git
-    if [[ $NEW =~ \.git$ ]]; then
-        if $(git init --bare --shared $REPO/$NEW &> /dev/null && true || false); then
-            echo $DESC > $REPO/$NEW/description
-            repo-init
-            sflog "Created new repository ${NEW} in ${REPO}"
-        else
-            sferror "Error creating ${NEW} in ${REPO}"
-        fi
+    if git init --bare --shared $REPO/$NEW; then
+        echo $DESC > $REPO/$NEW/description
+        repo-chmown
+        sflog "Created new repository ${NEW} in ${REPO}"
     else
-        NEW="${NEW}.git"
-        repo-new
+        sferror "Error creating ${NEW} in ${REPO}"
     fi
 }
 
-#clone repository
 repo-clone() {
-    repo-init
-    #Get repo name from $URL
-    CLONE="$(echo "$(echo "$URL" | grep / | cut -d/ -f $(($(grep -o '/' <<< "$URL" | wc -l)+1)) -)")"
-    #if ends with .git
-    if [[ $CLONE =~ \.git$ ]]; then
-        if $(git clone --bare --shared $URL $REPO/$CLONE/ &> /dev/null && true || false); then
-            echo "Cloned from ${URL}" > $REPO/$CLONE/description
-            repo-init
-            sflog "Cloned repository ${CLONE} in ${REPO}"
-        else
-            sferror "Error cloning ${URL} in ${REPO}"
-        fi
+    repo-chmown
+    CLONE="$(echo "$(echo "$URL" | grep / | cut -d/ -f $(($(grep -o '/' <<< "$1" | wc -l)+1)) -)")"
+    if git clone --bare --shared $1 $REPO/$CLONE/; then
+        echo "Cloned from $1" > $REPO/$CLONE/description
+        repo-chmown
+        sflog "Cloned repository $1 in ${REPO}"
     else
-        URL="${URL}.git"
-        repo-clone
+        sferror "Error cloning ${1} in ${REPO}"
     fi
 }
 
-#remove repository
 repo-remove() {
-    repo-init
-    #if ends with .git
-    if [[ $REMOVE =~ \.git$ ]]; then
-        rm -rf $REPO/$REMOVE &> /dev/null
-        sflog "Removed repository ${REMOVE} in ${REPO}"
-    else
-        REMOVE="${REMOVE}.git"
-        repo-remove
-    fi
+    rm -rf $REPO/$1
+    sflog "Removed repository $1 in ${REPO}"
 }
 
 #parse arguments
 while getopts ":vln:d:c:r:" opt; do
     case "${opt}" in
         v)
-            repo-init
+            repo-chmown
             sflog "Initialized ${REPO}"
             exit 0
             ;;
@@ -168,29 +102,21 @@ while getopts ":vln:d:c:r:" opt; do
             fi
             ;;
         c)
-            if [[ ${OPTARG} =~ ^- ]]; then
-                sferror "Bad argument string"
-            fi
-            URL=${OPTARG}
-            repo-clone
+            [[ ${OPTARG} =~ ^- ]] && sferror "Bad argument string"
+            repo-clone ${OPTARG}
             exit 0
             ;;
         r)
-            if [[ ${OPTARG} =~ ^- ]]; then
-                sferror "Bad argument string"
-            fi
-            REMOVE=${OPTARG}
-            repo-remove
+            [[ ${OPTARG} =~ ^- ]] && sferror "Bad argument string"
+            repo-remove ${OPTARG} 
             exit 0
             ;;
     esac
 done
 
-#check partial entry for -n -d
 if [ ! -z ${NEW+x} ] || [ ! -z ${DESC+x} ]; then
     sferror "Both -n and -d must be specified"
 fi
 
-#default action if no cmd line args are found
 showhelp
 exit 0

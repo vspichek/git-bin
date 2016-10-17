@@ -4,25 +4,18 @@ services:
   sshd:
     build: sshd
     volumes:
-      - git:/git:rw
-    ports:
-      - "22"
+      - /git
     network_mode: bridge
     restart: unless-stopped
 
   smart-http:
     build: smart-http
     volumes:
-      - git:/repos:rw
+      - /repos
+      - /ng-auth
     environment:
+      - FQDN=your.domain.com
       - VIRTUAL_HOST=your.domain.com
       - CERT_NAME=shared
     network_mode: bridge
     restart: unless-stopped
-
-volumes:
-  git:
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/git
