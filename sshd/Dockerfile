@@ -15,7 +15,7 @@ RUN apt-get -qq update && apt-get -qq upgrade && \
 # Setup a git user and SSH
 #Set a long random password to unlock the git user account
 RUN groupadd -g 1000 git && useradd -g git -u 1000 -d /git -m -r -s /usr/bin/git-shell git && \
-    sed -i -e 's/.*LogLevel.*/LogLevel VERBOSE/' -e 's/#*PermitRootLogin.*/PermitRootLogin no/' \
+    sed -i -e 's/.*LogLevel.*/LogLevel VERBOSE/' -e 's/#*\s*PermitRootLogin.*/PermitRootLogin no/' \
            -e 's/#UsePAM.*/UsePAM no/' /etc/ssh/sshd_config && \
    usermod -p `dd if=/dev/urandom bs=1 count=30 | uuencode -m - | head -2 | tail -1` git
 
